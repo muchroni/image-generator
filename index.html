@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Generator and Optimizer</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            color: #555;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #imagePreview {
+            max-width: 100%;
+            margin-top: 20px;
+        }
+        #downloadLink {
+            display: none;
+            margin-top: 10px;
+            text-decoration: none;
+            background-color: #008CBA;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+        }
+        .color-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .color-button {
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .color-picker {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #colorPickerButton {
+            width: 50px;
+            height: 30px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #hexColorInput {
+            width: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Generator and Optimizer</h1>
+        <input type="file" id="imageUpload" accept="image/*">
+        
+        <label for="overlayText">Overlay Text:</label>
+        <textarea id="overlayText" placeholder="Enter overlay text"></textarea>
+        
+        <label for="textPosition">Text Position:</label>
+        <select id="textPosition">
+            <option value="top">Top</option>
+            <option value="center">Center</option>
+            <option value="bottom">Bottom</option>
+            <option value="topRight">Top Right</option>
+            <option value="topLeft">Top Left</option>
+            <option value="bottomRight">Bottom Right</option>
+            <option value="bottomLeft">Bottom Left</option>
+            <option value="centerRight">Center Right</option>
+            <option value="centerLeft">Center Left</option>
+        </select>
+        
+        <label for="fontSize">Font Size (px):</label>
+        <input type="number" id="fontSize" value="24">
+        
+        <label for="fontFamily">Font Family:</label>
+        <select id="fontFamily">
+            <option value="Arial">Arial</option>
+            <option value="Helvetica">Helvetica</option>
+            <option value="Verdana">Verdana</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Palatino">Palatino</option>
+            <option value="Garamond">Garamond</option>
+            <option value="Bookman">Bookman</option>
+            <option value="Comic Sans MS">Comic Sans MS</option>
+            <option value="Trebuchet MS">Trebuchet MS</option>
+            <option value="Arial Black">Arial Black</option>
+        </select>
+        
+        <label>Text Color:</label>
+        <div class="color-picker">
+            <input type="color" id="colorPicker" style="display: none;">
+            <button id="colorPickerButton"></button>
+            <input type="text" id="hexColorInput" placeholder="#FFFFFF">
+            <span id="selectedColorText">#FFFFFF</span>
+        </div>
+        
+        <label for="newWidth">New Width (px):</label>
+        <input type="number" id="newWidth" placeholder="Enter new width">
+        
+        <button onclick="processImage()">Process Image</button>
+        <canvas id="imageCanvas" style="display:none;"></canvas>
+        <img id="imagePreview">
+        <a id="downloadLink" download="processed_image.png">Download Image</a>
+    </div>
+
+    <script>
+        let originalImage;
+        let textColor = '#ffffff';
+
+        document.getElementById('imageUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+                originalImage = new Image();
+                originalImage.onload = function() {
+                    drawImage();
+                }
+                originalImage.src = event.target.result;
+            }
+
+            reader.readAsDataURL(file);
+        });
+
+        document.getElementById('colorPickerButton').addEventListener('click', function() {
+            document.getElementById('colorPicker').click();
+        });
+
+        document.getElementById('colorPicker').addEventListener('input', function(e) {
+            updateColor(e.target.value);
+        });
+
+        document.getElementById('hexColorInput').addEventListener('input', function(e) {
+            if (/^#[0-9A-F]{6}$/i.test(e.target.value)) {
+                updateColor(e.target.value);
+            }
+        });
+
+        function updateColor(color) {
+            textColor = color;
+            document.getElementById('colorPickerButton').style.backgroundColor = color;
+            document.getElementById('hexColorInput').value = color;
+            document.getElementById('selectedColorText').textContent = color.toUpperCase();
+        }
+
+
+        function drawImage() {
+            const canvas = document.getElementById('imageCanvas');
+            const ctx = canvas.getContext('2d');
+            const preview = document.getElementById('imagePreview');
+            const newWidth = document.getElementById('newWidth').value;
+
+            let width = originalImage.width;
+            let height = originalImage.height;
+
+            if (newWidth && newWidth < width) {
+                height = (newWidth / width) * height;
+                width = newWidth;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            ctx.drawImage(originalImage, 0, 0, width, height);
+
+            const text = document.getElementById('overlayText').value;
+            const position = document.getElementById('textPosition').value;
+            const fontSize = document.getElementById('fontSize').value;
+            const fontFamily = document.getElementById('fontFamily').value;
+            ctx.font = `${fontSize}px ${fontFamily}`;
+            ctx.fillStyle = textColor;
+            ctx.textAlign = 'center';
+
+            let textX, textY;
+            switch(position) {
+                case 'top':
+                    textX = width / 2;
+                    textY = parseInt(fontSize) + 10;
+                    break;
+                case 'center':
+                    textX = width / 2;
+                    textY = height / 2;
+                    break;
+                case 'bottom':
+                    textX = width / 2;
+                    textY = height - 10;
+                    break;
+                case 'topRight':
+                    ctx.textAlign = 'right';
+                    textX = width - 10;
+                    textY = parseInt(fontSize) + 10;
+                    break;
+                case 'topLeft':
+                    ctx.textAlign = 'left';
+                    textX = 10;
+                    textY = parseInt(fontSize) + 10;
+                    break;
+                case 'bottomRight':
+                    ctx.textAlign = 'right';
+                    textX = width - 10;
+                    textY = height - 10;
+                    break;
+                case 'bottomLeft':
+                    ctx.textAlign = 'left';
+                    textX = 10;
+                    textY = height - 10;
+                    break;
+                case 'centerRight':
+                    ctx.textAlign = 'right';
+                    textX = width - 10;
+                    textY = height / 2;
+                    break;
+                case 'centerLeft':
+                    ctx.textAlign = 'left';
+                    textX = 10;
+                    textY = height / 2;
+                    break;
+            }
+
+            ctx.fillText(text, textX, textY);
+
+            preview.src = canvas.toDataURL('image/png');
+            document.getElementById('downloadLink').href = canvas.toDataURL('image/png');
+            document.getElementById('downloadLink').style.display = 'inline-block';
+        }
+
+        function processImage() {
+            if (originalImage) {
+                drawImage();
+            } else {
+                alert('Please upload an image first.');
+            }
+        }
+    </script>
+</body>
+</html>
